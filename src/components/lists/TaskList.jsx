@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import useList from '../../hooks/useList';
+import React, { useEffect, useState } from 'react';
+// import useList from '../../hooks/useList';
 import { motion } from 'framer-motion';
+import { addTask, getTasks, toggleComplete } from '../../firebase/taskController';
 /**
  * Componente que gestion la lista de tareas
  * @returns 
@@ -9,14 +10,31 @@ const TaskList = ({ setShowSettings, showSettings }) => {
     
   const [newTask, setNewTask] = useState('');
   const [taskList, setTaskList] = useState([])
+
+  useEffect(() => {
+    getTasks()
+    .then((tasks) => setTaskList([ ...tasks ]) )
+    .catch(e => console.error(e))
+    .finally(() => setNewTask(""))
+  }, []);
   
 /**
  * Añade una nueva tarea a la lista de tareas
  */
     const addNewTask = () => {
       if (newTask === "") return;
-      setTaskList([...taskList, {task :newTask, completed: false}]);
-      setNewTask("")
+      //AQUI VAMOS A AÑADIR TAREAS A LA BASE DE DATOS
+      const task = { task: newTask, completed: false}
+      addTask(task)
+      .then(() => {
+        setTaskList([...taskList, task ]);
+      })
+      .catch(e => console.error(e))
+      .finally(() => setNewTask(""))
+      //CUANDO SE AÑADE, SE MOSTRARA DENTRO DEL ESTADO TASKLIST
+      
+      // setTaskList([...taskList, {task :newTask, completed: false}]);
+      // setNewTask("")
     }
     /**
      * Funcion para chequear si la lista de tareas esta vacia
@@ -46,9 +64,22 @@ const TaskList = ({ setShowSettings, showSettings }) => {
     const insertNewItemEnter = (e) => e.key === 'Enter' && addNewTask()
 
     const toggleItemCompleted = index => {
-      let newTaskList = taskList
-      newTaskList[index].completed = !newTaskList[index].completed
-      setTaskList([...newTaskList])
+      // let newTaskList = taskList
+
+      let task = taskList.find(t => t.id === index)
+      toggleComplete(task)
+        .then(async() => {
+          const newTaskList = await getTasks()
+          return setTaskList([
+            ...newTaskList,
+          ])
+
+        })  
+        .catch((e) => console.error(e))
+      //ACTUALIZAR EN LA BASE DE DATOS EL ESTADO DE LA TAREA
+      //CUANDO SE HAYA ACTUALIZADO -> MOSTRAREMOS TODAS LAS TAREAS DENTRO DEL ESTADO TASKLIST
+      // newTaskList[index].completed = !newTaskList[index].completed
+      // setTaskList([...newTaskList])
     }
     return (
       <>
@@ -68,12 +99,12 @@ const TaskList = ({ setShowSettings, showSettings }) => {
                 <ul>
                   {taskList.map((item, index) => (
                     <motion.li initial={{x: "100vw"}} animate={{x:0}} key={index} >
-                    <label>
+                    <label className='cursor-pointer'>
                       <input
                         className='mr-2'
                         type="checkbox"
                         // onClick={()=>removeItem(index)}
-                        onClick={()=>toggleItemCompleted(index)}
+                        onClick={()=>toggleItemCompleted(item.id)}
                         onChange={()=>{}}
                         checked={item.completed}
                       />
